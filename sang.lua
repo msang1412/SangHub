@@ -24,7 +24,8 @@ task.spawn(function()
         until player.Character or player.CharacterAdded:Wait()
     end
 end)
--- Crystal Hub - Chest AutoFarm (Console Only + Fist Check + Job History)
+
+-- 🌌 Crystal Hub - Chest AutoFarm (Console Only + Fist Check + Job History)
 local MaxSpeed = 350
 local LocalPlayer = game:GetService("Players").LocalPlayer
 local TeleportService = game:GetService("TeleportService")
@@ -189,6 +190,12 @@ while task.wait(1) do
 			tpTo(chest.Position, MaxSpeed)
 			noclip(false)
 			task.wait(0.4)
+
+			-- 🟢 Nhảy 1 cái sau khi nhặt xong rương
+			local char = getCharacter()
+			if char:FindFirstChildOfClass("Humanoid") then
+				char:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+			end
 
 			if ChestCount >= MaxChests then
 				print("Đã nhặt đủ 30 rương, chuyển sang server mới...")
