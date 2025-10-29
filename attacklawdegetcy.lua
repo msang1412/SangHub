@@ -109,28 +109,54 @@ local function Startdutdit()
     end)
     if ok and btn then
         fireclickdetector(btn)
+        print("✅ Đã nhét Core Brain thành công!")
+        return true
+    else
+        print("❌ Không tìm thấy nút nhét chip")
+        return false
     end
+end
+
+--// Check Core Brain và nhét chip
+local function CheckAndInsertChip()
+    local backpack = player:WaitForChild("Backpack")
+    local char = player.Character
+    
+    -- Kiểm tra trong Backpack
+    if backpack:FindFirstChild("Core Brain") then
+        print("Đã tìm thấy Core Brain trong Backpack, đang nhét chip...")
+        Startdutdit()
+        return true
+    end
+    
+    -- Kiểm tra trong Character
+    if char and char:FindFirstChild("Core Brain") then
+        print("Đã tìm thấy Core Brain trong Character, đang nhét chip...")
+        Startdutdit()
+        return true
+    end
+    
+    return false
 end
 
 --// Main Loop
 task.spawn(function()
     while task.wait(0.2) do
         if not getgenv().AutoCyborg then continue end
-        local char = player.Character
-        if not char then continue end
-        local backpack = player:WaitForChild("Backpack")
-
-        -- ✅ Check Core Brain
-        if backpack:FindFirstChild("Core Brain") or char:FindFirstChild("Core Brain") then
-            Startdutdit()
+        
+        -- Kiểm tra liên tục nếu có Core Brain thì nhét chip
+        if CheckAndInsertChip() then
             getgenv().AutoCyborg = false
             break
         end
-
+        
+        local char = player.Character
+        if not char then continue end
+        
         EquipWeapon(getgenv().SelectWeapon)
         AutoHaki()
 
-        local chip = backpack:FindFirstChild("Microchip") or char:FindFirstChild("Microchip")
+        local chip = player.Backpack:FindFirstChild("Microchip") or char:FindFirstChild("Microchip")
         local hasChip = chip ~= nil
         local order = GetOrder()
         local orderExists = order ~= nil
@@ -182,6 +208,15 @@ task.spawn(function()
                 CommF:InvokeServer("BlackbeardReward", "Microchip", "2")
             end)
             task.wait(0.5)
+        end
+    end
+end)
+
+--// Chạy riêng để nhét Core Brain nếu có
+task.spawn(function()
+    while task.wait(1) do
+        if CheckAndInsertChip() then
+            break
         end
     end
 end)
