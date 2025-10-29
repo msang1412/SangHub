@@ -102,22 +102,21 @@ local function GetOrder()
     return nil
 end
 
---// Startdutdit (nhét chip)
+--// Startdutdit (nhét chip) - SPAM LIÊN TỤC
 local function Startdutdit()
     local ok, btn = pcall(function()
         return workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
     end)
     if ok and btn then
         fireclickdetector(btn)
-        print("✅ Đã nhét Core Brain thành công!")
+        print("✅ Đã nhét Core Brain!")
         return true
     else
-        print("❌ Không tìm thấy nút nhét chip")
         return false
     end
 end
 
---// Check Core Brain và nhét chip
+--// Check Core Brain và NHÉT LIÊN TỤC
 local function CheckAndInsertChip()
     local backpack = player:WaitForChild("Backpack")
     local char = player.Character
@@ -139,16 +138,23 @@ local function CheckAndInsertChip()
     return false
 end
 
+--// TASK RIÊNG ĐỂ NHÉT CORE BRAIN - SPAM LIÊN TỤC
+task.spawn(function()
+    while true do
+        if CheckAndInsertChip() then
+            -- Nếu có Core Brain thì spam nhét mỗi 0.5 giây
+            task.wait(0.5)
+        else
+            -- Nếu không có thì kiểm tra lại sau 1 giây
+            task.wait(1)
+        end
+    end
+end)
+
 --// Main Loop
 task.spawn(function()
     while task.wait(0.2) do
         if not getgenv().AutoCyborg then continue end
-        
-        -- Kiểm tra liên tục nếu có Core Brain thì nhét chip
-        if CheckAndInsertChip() then
-            getgenv().AutoCyborg = false
-            break
-        end
         
         local char = player.Character
         if not char then continue end
@@ -208,15 +214,6 @@ task.spawn(function()
                 CommF:InvokeServer("BlackbeardReward", "Microchip", "2")
             end)
             task.wait(0.5)
-        end
-    end
-end)
-
---// Chạy riêng để nhét Core Brain nếu có
-task.spawn(function()
-    while task.wait(1) do
-        if CheckAndInsertChip() then
-            break
         end
     end
 end)
