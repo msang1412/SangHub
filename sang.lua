@@ -30,106 +30,10 @@ local LocalPlayer = game:GetService("Players").LocalPlayer
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local Workspace = game:GetService("Workspace")
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local ChestCount = 0
 local MaxChests = 30
 local JobHistoryFile = "jobhistory.json"
-
--- Biến toàn cục để kiểm tra trạng thái raid
-local CanCollectChests = true
-local RaidDetected = false
-
-local function CheckCyborgRaid()
-    local attempts = 0
-    local maxAttempts = 3
-    local found = false
-    local connection
-    
-    connection = PlayerGui.DescendantAdded:Connect(function(desc)
-        if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("TextBox") then
-            local text = desc.Text or ""
-            
-            print("checking:", text)
-            
-            if string.find(text:lower(), "core brain") or string.find(text:lower(), "supply") then
-                print("da dut dit")
-                found = true
-                RaidDetected = true
-                CanCollectChests = false
-                connection:Disconnect()
-
-            elseif string.find(text:lower(), "microchip") or string.find(text:lower(), "not found") then
-                print("chua dut dit duoc bay gio")
-                found = true
-                RaidDetected = false
-                CanCollectChests = true
-                connection:Disconnect()
-            end
-        end
-        
-        if desc:IsA("Frame") then
-            task.wait(0.1)
-            local textLabels = desc:GetDescendants()
-            for _, child in ipairs(textLabels) do
-                if child:IsA("TextLabel") and child.Text then
-                    local text = child.Text
-                    print("detect", text)
-                    
-                    if string.find(text:lower(), "core brain") or string.find(text:lower(), "supply") then
-                        print("da dut dit")
-                        found = true
-                        RaidDetected = true
-                        CanCollectChests = false
-                        connection:Disconnect()
-                        return
-                    elseif string.find(text:lower(), "microchip") or string.find(text:lower(), "not found") then
-                        print("chua dut dit duoc bay gio")
-                        found = true
-                        RaidDetected = false
-                        CanCollectChests = true
-                        connection:Disconnect()
-                        return
-                    end
-                end
-            end
-        end
-    end)
-
-    local function ClickButton()
-        local ok, btn = pcall(function()
-            return workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
-        end)
-
-        if ok and btn then
-            fireclickdetector(btn)
-            attempts += 1
-            print("thu dut dit " .. attempts .. "...")
-            
-            if attempts < maxAttempts then
-                task.delay(1, ClickButton)
-            else
-                print("da thu dut dit" .. maxAttempts .. " lan")
-            end
-        else
-            warn("deo thay lo dit")
-            connection:Disconnect()
-        end
-    end
-
-    -- Bắt đầu nhét chip
-    ClickButton()
-
-    -- Nếu sau 8s không có thông báo
-    task.delay(8, function()
-        if not found then
-            print("where " .. maxAttempts .. " lan thu.")
-        end
-        if connection and connection.Connected then
-            connection:Disconnect()
-        end
-    end)
-end
 
 local function getCharacter()
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -411,34 +315,15 @@ local function hopServer(reason)
     end
 end
 
--- MAIN LOOP
 local visited = {}
 print("Đang tìm rương trong map...")
 
--- Chờ cho đến khi có nhân vật mới check Cyborg Raid
-LocalPlayer.CharacterAdded:Connect(function()
-    print("Nhân vật mới xuất hiện - kiểm tra Cyborg Raid...")
-    task.wait(2) -- Đợi một chút cho nhân vật load xong
-    CheckCyborgRaid()
-end)
-
--- Kiểm tra lần đầu nếu đã có nhân vật
-if LocalPlayer.Character then
-    print("Đã có nhân vật - kiểm tra Cyborg Raid...")
-    CheckCyborgRaid()
-end
-
-while task.wait(1) and CanCollectChests do
+while task.wait(1) do
 	if hasFistOfDarkness() then
 		print("Đã có Fist of Darkness — kích hoạt raid!")
 		Startdutdit()
 		break
 	end
-
-    -- Nếu đã detect được raid thành công thì dừng lại
-    if RaidDetected then
-        break
-    end
 
 	local chests = getChests()
 
@@ -453,11 +338,6 @@ while task.wait(1) and CanCollectChests do
 			Startdutdit()
 			return
 		end
-
-        -- Kiểm tra lại trạng thái trước mỗi lần nhặt rương
-        if not CanCollectChests or RaidDetected then
-            return
-        end
 
 		if chest and chest.Parent and not visited[chest] then
 			visited[chest] = true
