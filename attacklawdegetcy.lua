@@ -29,6 +29,7 @@ end)
 -- BIẾN TOÀN CỤC ĐỂ KIỂM SOÁT
 local hasCoreBrain = false
 local isRunningAutoCyborg = false
+local stopAllActivities = false
 
 -- THÊM PHẦN CYBORG RAID SAU KHI CHỌN TEAM
 local player = game:GetService("Players").LocalPlayer
@@ -65,6 +66,7 @@ local function StartAutoCyborg()
 
     -- Equip Weapon
     local function EquipWeapon(toolName)
+        if stopAllActivities then return end
         local char = player.Character or player.CharacterAdded:Wait()
         local backpack = player:WaitForChild("Backpack")
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -87,6 +89,7 @@ local function StartAutoCyborg()
 
     -- Auto Haki
     local function AutoHaki()
+        if stopAllActivities then return end
         if player.Character and not player.Character:FindFirstChild("HasBuso") then
             if tick() - lastHakiTime >= hakiCooldown then
                 pcall(function() CommF:InvokeServer("Buso") end)
@@ -97,6 +100,7 @@ local function StartAutoCyborg()
 
     -- Smooth Stay Above Target
     local function SmoothStayAbove(targetHRP)
+        if stopAllActivities then return end
         if not targetHRP then return end
         local char = player.Character
         if not char then return end
@@ -107,7 +111,7 @@ local function StartAutoCyborg()
 
     -- Keep Player in Air
     RunService.Heartbeat:Connect(function()
-        if getgenv().AutoCyborg then
+        if getgenv().AutoCyborg and not stopAllActivities then
             local char = player.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
             if hrp then
@@ -143,59 +147,97 @@ local function StartAutoCyborg()
         return nil
     end
 
-    -- Startdutdit (nhét chip) - SPAM LIÊN TỤC
-    local function Startdutdit()
-        local ok, btn = pcall(function()
-            return workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
-        end)
-        if ok and btn then
-            fireclickdetector(btn)
-            print("da nhet Core Brain!")
-            return true
-        else
-            return false
-        end
-    end
-
-    -- Check Core Brain và NHÉT LIÊN TỤC
-    local function CheckAndInsertChip()
+    -- KIỂM TRA CORE BRAIN TRONG INVENTORY
+    local function CheckCoreBrainInInventory()
         local backpack = player:WaitForChild("Backpack")
         local char = player.Character
         
-        -- Kiểm tra trong Backpack
         if backpack:FindFirstChild("Core Brain") then
-            print("da co core brain , dang nhet...")
-            Startdutdit()
             return true
         end
         
-        -- Kiểm tra trong Character
         if char and char:FindFirstChild("Core Brain") then
-            print(" da co core brain , dang nhet...")
-            Startdutdit()
             return true
         end
         
         return false
     end
 
-    -- TASK RIÊNG ĐỂ NHÉT CORE BRAIN - SPAM LIÊN TỤC
+    -- Startdutdit (nhét chip) - chỉ 1 lần click
+    local function Startdutdit()
+        local ok, btn = pcall(function()
+            return workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
+        end)
+        if ok and btn then
+            fireclickdetector(btn)
+            print("ra core brain roi...")
+            return true
+        else
+            return false
+        end
+    end
+
+    -- Check Core Brain và NHÉT LIÊN TỤC (sửa: spam đến khi Core Brain biến mất)
     task.spawn(function()
-        while getgenv().AutoCyborg do
-            if CheckAndInsertChip() then
-                -- Nếu có Core Brain thì spam nhét mỗi 0.5 giây
-                task.wait(0.5)
+        while getgenv().AutoCyborg and not stopAllActivities do
+            if CheckCoreBrainInInventory() then
+                print("co core brain , stop ")
+                -- set flags để dừng các phần khác
+                hasCoreBrain = true
+                stopAllActivities = true
+                getgenv().AutoCyborg = false
+                isRunningAutoCyborg = false
+
+                -- spam nhét Core Brain đến khi biến mất
+                local tries = 0
+                repeat
+                    local ok, btn = pcall(function()
+                        return workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
+                    end)
+                    if ok and btn then
+                        fireclickdetector(btn)
+                        tries = tries + 1
+                        print("dut dit lan " .. tries)
+                    else
+                        warn("ko thay nut dang thu lai")
+                    end
+                    task.wait(0.5)
+                until not CheckCoreBrainInInventory() or not hasCoreBrain
+
+                if not CheckCoreBrainInInventory() then
+                    print("da nhet xong , stop all")
+                    hasCoreBrain = false
+                    stopAllActivities = true
+                    getgenv().AutoCyborg = false
+                    isRunningAutoCyborg = false
+                    break
+                else
+                    -- nếu vòng lặp bị hủy do điều kiện khác thì reset flags nhẹ
+                    print("spam bi dung som")
+                    hasCoreBrain = CheckCoreBrainInInventory()
+                    stopAllActivities = true
+                    getgenv().AutoCyborg = false
+                    isRunningAutoCyborg = false
+                    break
+                end
             else
-                -- Nếu không có thì kiểm tra lại sau 1 giây
                 task.wait(1)
             end
         end
     end)
 
-    -- Main Loop - FARM ORDER
+    -- Main Loop - FARM ORDER (CHỈ CHẠY KHI KHÔNG CÓ CORE BRAIN)
     task.spawn(function()
         while task.wait(0.2) do
-            if not getgenv().AutoCyborg then break end
+            if not getgenv().AutoCyborg or stopAllActivities then break end
+            
+            if CheckCoreBrainInInventory() then
+                print("ra core brain roi dang spam nhet")
+                repeat
+                    task.wait(0.5)
+                until not CheckCoreBrainInInventory() or stopAllActivities
+                if stopAllActivities then break end
+            end
             
             local char = player.Character
             if not char then continue end
@@ -209,8 +251,15 @@ local function StartAutoCyborg()
             local orderExists = order ~= nil
 
             if orderExists then
-                print("attack law...")
+                print("attack order...")
                 repeat
+                    if stopAllActivities then break end
+                    
+                    if CheckCoreBrainInInventory() then
+                        print("co core brain , stop attack")
+                        break
+                    end
+                    
                     task.wait(0.15)
                     AutoHaki()
                     EquipWeapon(getgenv().SelectWeapon)
@@ -220,12 +269,12 @@ local function StartAutoCyborg()
                         order.HumanoidRootPart.CanCollide = false
                         order.HumanoidRootPart.Size = Vector3.new(120,120,120)
                     end
-                until not OrderExists() or not getgenv().AutoCyborg
+                until not OrderExists() or not getgenv().AutoCyborg or stopAllActivities
                 continue
             end
 
             if hasChip and not OrderExists() then
-                print("co chip dang dut chip...")
+                print("co chip , dang cbi dut...")
                 local ok, btn = pcall(function()
                     return Workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
                 end)
@@ -236,6 +285,13 @@ local function StartAutoCyborg()
                 local order = GetOrder()
                 if order then
                     repeat
+                        if stopAllActivities then break end
+                        
+                        if CheckCoreBrainInInventory() then
+                            print("co core brain , stop attack")
+                            break
+                        end
+                        
                         task.wait(0.15)
                         AutoHaki()
                         EquipWeapon(getgenv().SelectWeapon)
@@ -245,13 +301,13 @@ local function StartAutoCyborg()
                             order.HumanoidRootPart.Size = Vector3.new(120,120,120)
                         end
                         order = GetOrder()
-                    until not OrderExists() or not getgenv().AutoCyborg
+                    until not OrderExists() or not getgenv().AutoCyborg or stopAllActivities
                 end
                 continue
             end
 
             if not hasChip and not OrderExists() then
-                print("ko co chip law dang mua...")
+                print("ko co chip, dang mua...")
                 pcall(function()
                     CommF:InvokeServer("BlackbeardReward", "Microchip", "1")
                     task.wait(0.3)
@@ -273,10 +329,10 @@ local function StartCyborgRaid()
         if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("TextBox") then  
             local text = desc.Text or ""  
               
-            print("checking:", text)  
+            print("checking", text)  
               
             if string.find(text:lower(), "core brain") or string.find(text:lower(), "supply") then  
-                print(" da dut dit - da nhet key")  
+                print("da dut dit")  
                 found = true  
                 hasCoreBrain = true
                 connection:Disconnect()
@@ -285,10 +341,9 @@ local function StartCyborgRaid()
                 StartAutoCyborg()
                 
             elseif string.find(text:lower(), "microchip") or string.find(text:lower(), "not found") then  
-                print(" chua dut dit duoc bay gio - y la chua nhet hoac chua co fist of darkness")  
+                print("chua phai bay gio")  
                 found = true  
                 connection:Disconnect()
-                -- TIẾP TỤC NHẶT CHEST ĐỂ TÌM FIST OF DARKNESS
                 hasCoreBrain = false
             end  
         end  
@@ -299,10 +354,10 @@ local function StartCyborgRaid()
             for _, child in ipairs(textLabels) do  
                 if child:IsA("TextLabel") and child.Text then  
                     local text = child.Text  
-                    print("detect", text)  
+                    print("checking:", text)  
                       
                     if string.find(text:lower(), "core brain") or string.find(text:lower(), "supply") then  
-                        print("🎉 da dut dit - ĐÃ CÓ CORE BRAIN")  
+                        print("da dut dit")  
                         found = true  
                         hasCoreBrain = true
                         connection:Disconnect()
@@ -311,10 +366,9 @@ local function StartCyborgRaid()
                         StartAutoCyborg()
                         return  
                     elseif string.find(text:lower(), "microchip") or string.find(text:lower(), "not found") then  
-                        print("❌ chua dut dit duoc bay gio - CHƯA CÓ MICROCHIP")  
+                        print("chua phai bay gio")  
                         found = true  
                         connection:Disconnect()
-                        -- TIẾP TỤC NHẶT CHEST ĐỂ TÌM FIST OF DARKNESS
                         hasCoreBrain = false
                         return  
                     end  
@@ -331,15 +385,15 @@ local function StartCyborgRaid()
         if ok and btn then  
             fireclickdetector(btn)  
             attempts += 1  
-            print("thu dut dit " .. attempts .. "...")  
+            print("dut dit " .. attempts .. "...")  
               
             if attempts < maxAttempts then  
                 task.delay(1, ClickButton)  
             else  
-                print("da thu dut dit" .. maxAttempts .. " lan")  
+                print("dut dit" .. maxAttempts .. " lan")  
             end  
         else  
-            warn("deo thay lo dit")  
+            warn("ko thay lo dit")  
             if connection then
                 connection:Disconnect()  
             end
@@ -350,10 +404,10 @@ local function StartCyborgRaid()
 
     task.delay(8, function()  
         if not found then  
-            print("where " .. maxAttempts .. " lan thu.")  
+            print("tried " .. maxAttempts .. " lan.")  
         end  
         if connection and connection.Connected then  
-            connection:Disconnect()  
+            connection:Disconnect()
         end  
     end)
 end
@@ -398,9 +452,9 @@ local function Startdutdit()
     end)
     if ok and btn then
         fireclickdetector(btn)
-        print("da dut Fist of Darkness Raid!")
+        print(" da nhet Fist of Darkness!")
     else
-        print("ko tim thay nut ")
+        print("ko thay lo dit")
     end
 end
 
@@ -507,7 +561,7 @@ Title.TextYAlignment = Enum.TextYAlignment.Center
 Title.Parent = Frame
 
 SubText.Font = Enum.Font.Gotham
-SubText.Text = "Hopping Server..."
+SubText.Text = "Đang chuyển server..."
 SubText.TextColor3 = Color3.fromRGB(255, 255, 255)
 SubText.TextSize = 28
 SubText.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -531,7 +585,7 @@ Reason.TextYAlignment = Enum.TextYAlignment.Center
 Reason.Parent = Frame
 
 CancelHint.Font = Enum.Font.Gotham
-CancelHint.Text = "Double click to abort the process."
+CancelHint.Text = "Double click để hủy"
 CancelHint.TextColor3 = Color3.fromRGB(255, 255, 255)
 CancelHint.TextTransparency = 0.5
 CancelHint.TextSize = 16
@@ -591,9 +645,9 @@ ButtonCall.MouseButton1Click:Connect(function()
 end)
 
 local function ShowHopUI(reasonText)
-    Title.Text = "judusty hub"
-    SubText.Text = "Hopping Server in 5s..."
-    Reason.Text = "Reason: " .. (reasonText or "Collect Chest")
+    Title.Text = "sang hub"
+    SubText.Text = "Đang chuyển server trong 5s..."
+    Reason.Text = "Reason: " .. (reasonText or "Thu thập rương")
     isCounting = true
     fadeInUI()
     
@@ -601,12 +655,12 @@ local function ShowHopUI(reasonText)
         if not isCounting then break end
         task.wait(1)
         if isCounting then
-            SubText.Text = "Hopping Server in " .. i .. "s..."
+            SubText.Text = "Đang chuyển server trong " .. i .. "s..."
         end
     end
     
     if isCounting then
-        SubText.Text = "Hopping now..."
+        SubText.Text = "Đang chuyển server..."
         task.wait(0.5)
         fadeOutUI()
         return true
@@ -616,11 +670,11 @@ local function ShowHopUI(reasonText)
 end
 
 local function hopServer(reason)
-    print("Không còn rương, đang chuyển sang server mới...")
+    print("ko co chest hop...")
     
-    local allowHop = ShowHopUI(reason or "No Chests Found")
+    local allowHop = ShowHopUI(reason or "Không tìm thấy rương")
     if not allowHop then
-        print("Đã hủy hop server")
+        print("huy hop")
         return
     end
     
@@ -642,50 +696,60 @@ local function hopServer(reason)
     if #servers > 0 then
         addJobToHistory(game.JobId)
         local target = servers[math.random(1, #servers)]
-        print("Chuyển sang server:", target)
+        print("job id:", target)
         TeleportService:TeleportToPlaceInstance(placeId, target, LocalPlayer)
     else
-        print("Không tìm thấy server khác (toàn server trùng), xóa lịch sử và thử lại...")
+        print("ko tim thay sv...")
         writeJobHistory({})
         task.wait(3)
-        hopServer("Server List Refresh")
+        hopServer("Làm mới danh sách server")
     end
 end
 
 local visited = {}
-print("find chest...")
+print("checking...")
 
 -- VÒNG LẶP CHÍNH - CHỈ CHẠY KHI CHƯA CÓ CORE BRAIN
-while task.wait(1) and not hasCoreBrain do
+while task.wait(1) and not hasCoreBrain and not stopAllActivities do
     -- KIỂM TRA NẾU ĐANG CHẠY AUTO CYBORG THÌ DỪNG NHẶT CHEST
-    if hasCoreBrain or isRunningAutoCyborg then
-        print("da co key rau den -dut key")
+    if hasCoreBrain or isRunningAutoCyborg or stopAllActivities then
+        print("da dut key k can nhat chest nx")
         break
     end
 
 	if hasFistOfDarkness() then
-		print("da co key rau den -dut key")
+		print("da co key dang nhet...")
 		Startdutdit()
+        
+        -- SAU KHI NHÉT FIST OF DARKNESS, BẬT AUTOCYBORG
+        task.wait(2) -- Chờ một chút để raid bắt đầu
+        print("da nhat dc key se doi sang attack law sau it giay")
+        StartAutoCyborg()
 		break
 	end
 
 	local chests = getChests()
 
 	if #chests == 0 then
-		hopServer("No Chests Found")
+		hopServer("Không tìm thấy rương")
 		break
 	end
 
 	for _, chest in ipairs(chests) do
         -- KIỂM TRA LẠI TRƯỚC KHI NHẶT MỖI CHEST
-        if hasCoreBrain or isRunningAutoCyborg then
-            print("da dut dit law xong - ko nhat chest")
+        if hasCoreBrain or isRunningAutoCyborg or stopAllActivities then
+            print("da dut key k can nhat chest nx")
             return
         end
 
 		if hasFistOfDarkness() then
-			print("Đã có Fist of Darkness — kích hoạt raid!")
+			print("co key cbi doi sang attack law")
 			Startdutdit()
+            
+            -- SAU KHI NHÉT FIST OF DARKNESS, BẬT AUTOCYBORG
+            task.wait(2) -- Chờ một chút để raid bắt đầu
+            print("doi sang attack law")
+            StartAutoCyborg()
 			return
 		end
 
@@ -693,7 +757,7 @@ while task.wait(1) and not hasCoreBrain do
 			visited[chest] = true
 			ChestCount += 1
 
-			print(string.format("Đang nhặt rương [%d/%d]...", ChestCount, MaxChests))
+			print(string.format(" Đang nhặt rương [%d/%d]...", ChestCount, MaxChests))
 
 			noclip(true)
 			tpTo(chest.Position, MaxSpeed)
@@ -706,8 +770,8 @@ while task.wait(1) and not hasCoreBrain do
 			end
 
 			if ChestCount >= MaxChests then
-				print("Đã nhặt đủ 30 rương, chuyển sang server mới...")
-				hopServer("Max Chests Reached")
+				print("du 30 ruong hop...")
+				hopServer("Limit Chest Hop[Collect Chest]")
 				return
 			end
 		end
@@ -716,6 +780,10 @@ end
 
 -- THÔNG BÁO KHI ĐÃ CHUYỂN SANG CHẾ ĐỘ AUTO CYBORG
 if hasCoreBrain or isRunningAutoCyborg then
-    print("dut dit law")
-    print("dut dit law va doi core brain")
+    print("chuyen sang attack law")
+end
+
+-- THÔNG BÁO KHI DỪNG HOÀN TOÀN
+if stopAllActivities then
+    print("stop all- tai vi da dut key")
 end
