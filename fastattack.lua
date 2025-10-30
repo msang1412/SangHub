@@ -13,12 +13,12 @@ local RegisterHit = Net:WaitForChild("RE/RegisterHit")
 local ShootGunEvent = Net:WaitForChild("RE/ShootGunEvent")
 local GunValidator = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Validator2")
 local AttackConfig = {
-    AttackDistance = 65,
+    AttackDistance = 70,
     AttackMobs = true,
     AttackPlayers = true,
-    AttackCooldown = 0.00000000000000000000001,
-    ComboResetTime = 0.00000000000000000000001,
-    MaxCombo = 2,
+    AttackCooldown = 0.000000000000000000000000000001,
+    ComboResetTime = 0.000000000000000000000000000001,
+    MaxCombo = 3,
     HitboxLimbs = {"RightLowerArm", "RightUpperArm", "LeftLowerArm", "LeftUpperArm", "RightHand", "LeftHand"},
     AutoClickEnabled = true
 }
