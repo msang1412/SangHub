@@ -2,7 +2,7 @@ game:GetService("StarterGui"):SetCore(
     "SendNotification",
     {
         Title = "sang hub",
-        Text = "pls key, core brain",
+        Text = "hub se dong",
         Icon = "rbxassetid://131665827881677",
         Duration = 999999999
     }
@@ -48,17 +48,369 @@ task.spawn(function()
         local block = workspace.Map.CircleIsland:FindFirstChild("BlockPart")
         if block then
             warn("m chua nhet core brain - tiep tuc farm")
-            -- Tiếp tục chạy các phần sau
         else
             warn("m da nhet core brain - stop all")
             hasCoreBrain = true
             stopAllActivities = true
-            return -- Dừng script
+            return
         end
     else
         warn("Không tìm thấy Map hoặc CircleIsland trong workspace!")
     end
 end)
+
+-- SỬA LẠI HÀM AUTOCYBORG ĐỂ TRÁNH LỖI NIL
+local function StartAutoCyborg()
+    if isRunningAutoCyborg then 
+        print("AutoCyborg da chay roi")
+        return 
+    end
+    isRunningAutoCyborg = true
+    
+    print("Bat dau AutoCyborg...")
+    
+    -- Config
+    getgenv().AutoCyborg = true
+    getgenv().SelectWeapon = "Melee"
+    local TweenSpeed = 350
+    local HeightAboveOrder = 25
+    local hakiCooldown = 5
+    local lastHakiTime = 0
+
+    -- Services
+    local Players = game:GetService("Players")
+    local TweenService = game:GetService("TweenService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Workspace = game:GetService("Workspace")
+    local RunService = game:GetService("RunService")
+    local player = Players.LocalPlayer
+
+    -- KIỂM TRA REMOTE TRƯỚC KHI DÙNG
+    local function GetCommF()
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if remotes and remotes:FindFirstChild("CommF_") then
+            return remotes.CommF_
+        end
+        return nil
+    end
+
+    -- Helper function an toàn
+    local function SafeWaitForChild(parent, name, timeout)
+        timeout = timeout or 5
+        local startTime = tick()
+        while tick() - startTime < timeout do
+            if stopAllActivities then return nil end
+            local child = parent:FindFirstChild(name)
+            if child then return child end
+            task.wait(0.1)
+        end
+        return nil
+    end
+
+    -- Equip Weapon an toàn
+    local function EquipWeapon(toolName)
+        if stopAllActivities then return end
+        local char = player.Character
+        if not char then return end
+        
+        local backpack = player:WaitForChild("Backpack")
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        
+        local function FindTool()
+            for _, v in pairs(backpack:GetChildren()) do
+                if v:IsA("Tool") and (string.find(v.Name:lower(), toolName:lower()) or (v:GetAttribute("WeaponType") == toolName)) then
+                    return v
+                end
+            end
+            for _, v in pairs(char:GetChildren()) do
+                if v:IsA("Tool") and (string.find(v.Name:lower(), toolName:lower()) or (v:GetAttribute("WeaponType") == toolName)) then
+                    return v
+                end
+            end
+            return nil
+        end
+        
+        local tool = FindTool()
+        if tool then 
+            pcall(function()
+                humanoid:EquipTool(tool)
+            end)
+        end
+    end
+
+    -- Auto Haki an toàn
+    local function AutoHaki()
+        if stopAllActivities then return end
+        if not player.Character then return end
+        
+        local char = player.Character
+        if char and not char:FindFirstChild("HasBuso") then
+            if tick() - lastHakiTime >= hakiCooldown then
+                local commF = GetCommF()
+                if commF then
+                    pcall(function() 
+                        commF:InvokeServer("Buso") 
+                    end)
+                    lastHakiTime = tick()
+                end
+            end
+        end
+    end
+
+    -- Smooth Stay Above Target an toàn
+    local function SmoothStayAbove(targetHRP)
+        if stopAllActivities then return end
+        if not targetHRP or not targetHRP.Parent then return end
+        
+        local char = player.Character
+        if not char then return end
+        
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        pcall(function()
+            hrp.CFrame = CFrame.new(targetHRP.Position + Vector3.new(0, HeightAboveOrder, 0))
+        end)
+    end
+
+    -- Keep Player in Air
+    RunService.Heartbeat:Connect(function()
+        if getgenv().AutoCyborg and not stopAllActivities then
+            local char = player.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                pcall(function()
+                    hrp.Velocity = Vector3.zero
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                end)
+            end
+        end
+    end)
+
+    -- Check Order an toàn
+    local function OrderExists()
+        local enemies = Workspace:FindFirstChild("Enemies")
+        if not enemies then return false end
+        
+        local order = enemies:FindFirstChild("Order")
+        if order and order:FindFirstChild("Humanoid") and order.Humanoid.Health > 0 and order:FindFirstChild("HumanoidRootPart") then
+            return true
+        else
+            return false
+        end
+    end
+
+    local function GetOrder()
+        local timer = 0
+        local order
+        repeat
+            if stopAllActivities then return nil end
+            
+            local enemies = Workspace:FindFirstChild("Enemies")
+            if enemies then
+                order = enemies:FindFirstChild("Order")
+                if order and order:FindFirstChild("HumanoidRootPart") and order:FindFirstChild("Humanoid") then
+                    return order
+                end
+            end
+            task.wait(0.1)
+            timer = timer + 0.1
+        until timer >= 5
+        return nil
+    end
+
+    -- KIỂM TRA CORE BRAIN TRONG INVENTORY
+    local function CheckCoreBrainInInventory()
+        if stopAllActivities then return true end
+        
+        local backpack = player:FindFirstChild("Backpack")
+        if not backpack then return false end
+        
+        local char = player.Character
+        
+        if backpack:FindFirstChild("Core Brain") then
+            return true
+        end
+        
+        if char and char:FindFirstChild("Core Brain") then
+            return true
+        end
+        
+        return false
+    end
+
+    -- Startdutdit (nhét chip) - chỉ 1 lần click
+    local function Startdutdit()
+        local ok, btn = pcall(function()
+            return workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
+        end)
+        if ok and btn then
+            fireclickdetector(btn)
+            print("Click nut raid...")
+            return true
+        else
+            print("Khong thay nut raid")
+            return false
+        end
+    end
+
+    -- Check Core Brain và NHÉT LIÊN TỤC
+    task.spawn(function()
+        while getgenv().AutoCyborg and not stopAllActivities do
+            if CheckCoreBrainInInventory() then
+                print("Phat hien Core Brain, dung farm va bat dau nhet...")
+                -- set flags để dừng các phần khác
+                hasCoreBrain = true
+                stopAllActivities = true
+                getgenv().AutoCyborg = false
+                isRunningAutoCyborg = false
+
+                -- spam nhét Core Brain đến khi biến mất
+                local tries = 0
+                repeat
+                    if tries >= 10 then break end -- Giới hạn 10 lần thử
+                    
+                    local ok, btn = pcall(function()
+                        return workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
+                    end)
+                    if ok and btn then
+                        fireclickdetector(btn)
+                        tries = tries + 1
+                        print("Nhet Core Brain lan " .. tries)
+                    else
+                        warn("Khong thay nut, thu lai...")
+                    end
+                    task.wait(0.5)
+                    
+                    -- Kiểm tra lại xem Core Brain còn không
+                    if not CheckCoreBrainInInventory() then
+                        print("Da nhet Core Brain thanh cong!")
+                        break
+                    end
+                until not CheckCoreBrainInInventory() or stopAllActivities
+
+                print("Hoan thanh nhet Core Brain!")
+                break
+            else
+                task.wait(1)
+            end
+        end
+    end)
+
+    -- Main Loop - FARM ORDER (CHỈ CHẠY KHI KHÔNG CÓ CORE BRAIN)
+    task.spawn(function()
+        while task.wait(0.2) do
+            if not getgenv().AutoCyborg or stopAllActivities then 
+                print("Dung AutoCyborg")
+                break 
+            end
+            
+            if CheckCoreBrainInInventory() then
+                print("Phat hien Core Brain, dung farm")
+                break
+            end
+            
+            local char = player.Character
+            if not char then 
+                task.wait(1)
+                continue 
+            end
+            
+            EquipWeapon(getgenv().SelectWeapon)
+            AutoHaki()
+
+            local backpack = player:FindFirstChild("Backpack")
+            if not backpack then 
+                task.wait(1)
+                continue 
+            end
+            
+            local chip = backpack:FindFirstChild("Microchip") or char:FindFirstChild("Microchip")
+            local hasChip = chip ~= nil
+            local order = GetOrder()
+            local orderExists = order ~= nil
+
+            if orderExists then
+                print("Dang tan cong Order...")
+                repeat
+                    if stopAllActivities then break end
+                    
+                    if CheckCoreBrainInInventory() then
+                        print("Co Core Brain, dung tan cong")
+                        break
+                    end
+                    
+                    task.wait(0.15)
+                    AutoHaki()
+                    EquipWeapon(getgenv().SelectWeapon)
+                    order = GetOrder()
+                    if order and order:FindFirstChild("HumanoidRootPart") then
+                        pcall(function()
+                            SmoothStayAbove(order.HumanoidRootPart)
+                            order.HumanoidRootPart.CanCollide = false
+                            order.HumanoidRootPart.Size = Vector3.new(120,120,120)
+                        end)
+                    end
+                until not OrderExists() or not getgenv().AutoCyborg or stopAllActivities
+                continue
+            end
+
+            if hasChip and not OrderExists() then
+                print("Co Microchip, bat dau raid...")
+                Startdutdit()
+
+                -- Chờ Order xuất hiện
+                local waitTime = 0
+                repeat
+                    task.wait(0.5)
+                    waitTime = waitTime + 0.5
+                    order = GetOrder()
+                until order or waitTime >= 10
+
+                if order then
+                    print("Order da xuat hien, bat dau tan cong...")
+                    repeat
+                        if stopAllActivities then break end
+                        
+                        if CheckCoreBrainInInventory() then
+                            print("Co Core Brain, dung tan cong")
+                            break
+                        end
+                        
+                        task.wait(0.15)
+                        AutoHaki()
+                        EquipWeapon(getgenv().SelectWeapon)
+                        if order and order:FindFirstChild("HumanoidRootPart") then
+                            pcall(function()
+                                SmoothStayAbove(order.HumanoidRootPart)
+                                order.HumanoidRootPart.CanCollide = false
+                                order.HumanoidRootPart.Size = Vector3.new(120,120,120)
+                            end)
+                        end
+                        order = GetOrder()
+                    until not OrderExists() or not getgenv().AutoCyborg or stopAllActivities
+                end
+                continue
+            end
+
+            if not hasChip and not OrderExists() then
+                print("Khong co Microchip, dang mua...")
+                local commF = GetCommF()
+                if commF then
+                    pcall(function()
+                        commF:InvokeServer("BlackbeardReward", "Microchip", "1")
+                        task.wait(0.3)
+                        commF:InvokeServer("BlackbeardReward", "Microchip", "2")
+                    end)
+                end
+                task.wait(0.5)
+            end
+        end
+        print("Ket thuc AutoCyborg")
+        isRunningAutoCyborg = false
+    end)
+end
 
 -- THÊM PHẦN CYBORG RAID SAU KHI CHỌN TEAM
 local player = game:GetService("Players").LocalPlayer
@@ -66,290 +418,6 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- CHỈ CHẠY CYBORG RAID NẾU CHƯA CÓ CORE BRAIN
 if not hasCoreBrain and not stopAllActivities then
-    local function StartAutoCyborg()
-        if isRunningAutoCyborg then return end
-        isRunningAutoCyborg = true
-        
-        print("start...")
-        
-        -- Config
-        getgenv().AutoCyborg = true
-        getgenv().SelectWeapon = "Melee"
-        local TweenSpeed = 350
-        local HeightAboveOrder = 25
-        local hakiCooldown = 5
-        local lastHakiTime = 0
-
-        -- Services
-        local Players = game:GetService("Players")
-        local TweenService = game:GetService("TweenService")
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local Workspace = game:GetService("Workspace")
-        local RunService = game:GetService("RunService")
-        local player = Players.LocalPlayer
-        local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
-
-        -- Helper
-        local function SafeWaitForChild(parent, name)
-            local success, result = pcall(function() return parent:WaitForChild(name) end)
-            if success then return result else return nil end
-        end
-
-        -- Equip Weapon
-        local function EquipWeapon(toolName)
-            if stopAllActivities then return end
-            local char = player.Character or player.CharacterAdded:Wait()
-            local backpack = player:WaitForChild("Backpack")
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if not humanoid then return end
-            local function FindTool()
-                for _, v in pairs(backpack:GetChildren()) do
-                    if v:IsA("Tool") and (string.find(v.Name:lower(), toolName:lower()) or (v:GetAttribute("WeaponType") == toolName)) then
-                        return v
-                    end
-                end
-                for _, v in pairs(char:GetChildren()) do
-                    if v:IsA("Tool") and (string.find(v.Name:lower(), toolName:lower()) or (v:GetAttribute("WeaponType") == toolName)) then
-                        return v
-                    end
-                end
-            end
-            local tool = FindTool()
-            if tool then humanoid:EquipTool(tool) end
-        end
-
-        -- Auto Haki
-        local function AutoHaki()
-            if stopAllActivities then return end
-            if player.Character and not player.Character:FindFirstChild("HasBuso") then
-                if tick() - lastHakiTime >= hakiCooldown then
-                    pcall(function() CommF:InvokeServer("Buso") end)
-                    lastHakiTime = tick()
-                end
-            end
-        end
-
-        -- Smooth Stay Above Target
-        local function SmoothStayAbove(targetHRP)
-            if stopAllActivities then return end
-            if not targetHRP then return end
-            local char = player.Character
-            if not char then return end
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            hrp.CFrame = CFrame.new(targetHRP.Position + Vector3.new(0, HeightAboveOrder, 0))
-        end
-
-        -- Keep Player in Air
-        RunService.Heartbeat:Connect(function()
-            if getgenv().AutoCyborg and not stopAllActivities then
-                local char = player.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    hrp.Velocity = Vector3.zero
-                    hrp.AssemblyLinearVelocity = Vector3.zero
-                end
-            end
-        end)
-
-        -- Check Order
-        local function OrderExists()
-            local enemies = Workspace:FindFirstChild("Enemies")
-            if not enemies then return false end
-            local order = enemies:FindFirstChild("Order")
-            if order and order:FindFirstChild("Humanoid") and order.Humanoid.Health > 0 and order:FindFirstChild("HumanoidRootPart") then
-                return true
-            else
-                return false
-            end
-        end
-
-        local function GetOrder()
-            local timer = 0
-            local order
-            repeat
-                order = Workspace:FindFirstChild("Enemies") and Workspace.Enemies:FindFirstChild("Order")
-                if order and order:FindFirstChild("HumanoidRootPart") and order:FindFirstChild("Humanoid") then
-                    return order
-                end
-                task.wait(0.1)
-                timer = timer + 0.1
-            until timer >= 5
-            return nil
-        end
-
-        -- KIỂM TRA CORE BRAIN TRONG INVENTORY
-        local function CheckCoreBrainInInventory()
-            local backpack = player:WaitForChild("Backpack")
-            local char = player.Character
-            
-            if backpack:FindFirstChild("Core Brain") then
-                return true
-            end
-            
-            if char and char:FindFirstChild("Core Brain") then
-                return true
-            end
-            
-            return false
-        end
-
-        -- Startdutdit (nhét chip) - chỉ 1 lần click
-        local function Startdutdit()
-            local ok, btn = pcall(function()
-                return workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
-            end)
-            if ok and btn then
-                fireclickdetector(btn)
-                print("ra core brain roi...")
-                return true
-            else
-                return false
-            end
-        end
-
-        -- Check Core Brain và NHÉT LIÊN TỤC (sửa: spam đến khi Core Brain biến mất)
-        task.spawn(function()
-            while getgenv().AutoCyborg and not stopAllActivities do
-                if CheckCoreBrainInInventory() then
-                    print("co core brain , stop ")
-                    -- set flags để dừng các phần khác
-                    hasCoreBrain = true
-                    stopAllActivities = true
-                    getgenv().AutoCyborg = false
-                    isRunningAutoCyborg = false
-
-                    -- spam nhét Core Brain đến khi biến mất
-                    local tries = 0
-                    repeat
-                        local ok, btn = pcall(function()
-                            return workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
-                        end)
-                        if ok and btn then
-                            fireclickdetector(btn)
-                            tries = tries + 1
-                            print("dut dit lan " .. tries)
-                        else
-                            warn("ko thay nut dang thu lai")
-                        end
-                        task.wait(0.5)
-                    until not CheckCoreBrainInInventory() or not hasCoreBrain
-
-                    if not CheckCoreBrainInInventory() then
-                        print("da nhet xong , stop all")
-                        hasCoreBrain = false
-                        stopAllActivities = true
-                        getgenv().AutoCyborg = false
-                        isRunningAutoCyborg = false
-                        break
-                    else
-                        -- nếu vòng lặp bị hủy do điều kiện khác thì reset flags nhẹ
-                        print("spam bi dung som")
-                        hasCoreBrain = CheckCoreBrainInInventory()
-                        stopAllActivities = true
-                        getgenv().AutoCyborg = false
-                        isRunningAutoCyborg = false
-                        break
-                    end
-                else
-                    task.wait(1)
-                end
-            end
-        end)
-
-        -- Main Loop - FARM ORDER (CHỈ CHẠY KHI KHÔNG CÓ CORE BRAIN)
-        task.spawn(function()
-            while task.wait(0.2) do
-                if not getgenv().AutoCyborg or stopAllActivities then break end
-                
-                if CheckCoreBrainInInventory() then
-                    print("ra core brain roi dang spam nhet")
-                    repeat
-                        task.wait(0.5)
-                    until not CheckCoreBrainInInventory() or stopAllActivities
-                    if stopAllActivities then break end
-                end
-                
-                local char = player.Character
-                if not char then continue end
-                
-                EquipWeapon(getgenv().SelectWeapon)
-                AutoHaki()
-
-                local chip = player.Backpack:FindFirstChild("Microchip") or char:FindFirstChild("Microchip")
-                local hasChip = chip ~= nil
-                local order = GetOrder()
-                local orderExists = order ~= nil
-
-                if orderExists then
-                    print("attack order...")
-                    repeat
-                        if stopAllActivities then break end
-                        
-                        if CheckCoreBrainInInventory() then
-                            print("co core brain , stop attack")
-                            break
-                        end
-                        
-                        task.wait(0.15)
-                        AutoHaki()
-                        EquipWeapon(getgenv().SelectWeapon)
-                        order = GetOrder()
-                        if order and order:FindFirstChild("HumanoidRootPart") then
-                            SmoothStayAbove(order.HumanoidRootPart)
-                            order.HumanoidRootPart.CanCollide = false
-                            order.HumanoidRootPart.Size = Vector3.new(120,120,120)
-                        end
-                    until not OrderExists() or not getgenv().AutoCyborg or stopAllActivities
-                    continue
-                end
-
-                if hasChip and not OrderExists() then
-                    print("co chip , dang cbi dut...")
-                    local ok, btn = pcall(function()
-                        return Workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector
-                    end)
-                    if ok and btn then
-                        fireclickdetector(btn)
-                    end
-
-                    local order = GetOrder()
-                    if order then
-                        repeat
-                            if stopAllActivities then break end
-                            
-                            if CheckCoreBrainInInventory() then
-                                print("co core brain , stop attack")
-                                break
-                            end
-                            
-                            task.wait(0.15)
-                            AutoHaki()
-                            EquipWeapon(getgenv().SelectWeapon)
-                            if order and order:FindFirstChild("HumanoidRootPart") then
-                                SmoothStayAbove(order.HumanoidRootPart)
-                                order.HumanoidRootPart.CanCollide = false
-                                order.HumanoidRootPart.Size = Vector3.new(120,120,120)
-                            end
-                            order = GetOrder()
-                        until not OrderExists() or not getgenv().AutoCyborg or stopAllActivities
-                    end
-                    continue
-                end
-
-                if not hasChip and not OrderExists() then
-                    print("ko co chip, dang mua...")
-                    pcall(function()
-                        CommF:InvokeServer("BlackbeardReward", "Microchip", "1")
-                        task.wait(0.3)
-                        CommF:InvokeServer("BlackbeardReward", "Microchip", "2")
-                    end)
-                    task.wait(0.5)
-                end
-            end
-        end)
-    end
-
     local function StartCyborgRaid()
         local attempts = 0
         local maxAttempts = 3
