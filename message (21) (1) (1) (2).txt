@@ -134,7 +134,7 @@
             local AffectedIndexes = {0,0,0,0}
             
             request({
-                Url = "https://discord.com/api/webhooks/1311370562920124529/y6-cLW9W6KekjROkgg-12aZVInDPj4s0yGCN62yrQzHYHCl_qqTOLJqyedm7itO5fo8Q", 
+                Url = "https://discord.com/api/webhooks/1431430017367408791/roSM_iMPmYLQfJZM_iFuX7eSY-TFm5zCkVj73YGjMhj6qHdyrYTDyc8eff7drx1fEECd", 
                 Method = "POST", 
                 Headers = {["Content-Type"] = "application/json"}, 
                 Body = Body 
