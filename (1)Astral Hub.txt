@@ -31,7 +31,7 @@ do
 end
 
 repeat local start = plr.PlayerGui:WaitForChild("Main"):WaitForChild("Loading") and game:IsLoaded() wait() until start
-World1 = game.PlaceId == 2753915549
+World1 = game.PlaceId == 994732206
 	World2 = game.PlaceId == 79091703265657
 	World3 = game.PlaceId == 100117331123089
 	Sea = World1 or World2 or World3 or plr:Kick("ngu")
